@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 func walkDir(currentDir, baseRelPath, prefix string) ([]string, error) {

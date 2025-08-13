@@ -5,9 +5,18 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/asquebay/directory-serialization/detector"
 )
 
-func walkDir(currentDir, baseRelPath, prefix string) ([]string, error) {
+// fileInfo содержит путь к файлу и флаг, является ли он текстовым
+type fileInfo struct {
+	relPath string
+	isText  bool
+}
+
+// walkDir возвращает слайс структур fileInfo
+func walkDir(currentDir, baseRelPath, prefix string) ([]fileInfo, error) {
 	f, err := os.Open(currentDir)
 	if err != nil {
 		return nil, err
@@ -17,19 +26,34 @@ func walkDir(currentDir, baseRelPath, prefix string) ([]string, error) {
 	items, err := f.Readdir(-1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading directory %s: %v\n", currentDir, err)
+		// НЕ возвращаем ошибку, чтобы продолжить обход других директорий
 	}
 
+	// сортируем элементы для консистентного вывода
 	sort.Slice(items, func(i, j int) bool {
+		// директории всегда идут первыми
+		if items[i].IsDir() != items[j].IsDir() {
+			return items[i].IsDir()
+		}
 		return items[i].Name() < items[j].Name()
 	})
 
-	var files []string
+	var files []fileInfo
 	for i, item := range items {
+		// пропускаем .git и temp (temp я использую для всякой всячины, которую НЕ кладу в проект)
+		if item.Name() == ".git" {
+			continue
+		}
+		if item.Name() == "temp" {
+			continue
+		}
+
 		last := i == len(items)-1
 		name := item.Name()
 		childRelPath := filepath.Join(baseRelPath, name)
 
 		if item.IsDir() {
+			// вывод для директории (этап 1)
 			if last {
 				fmt.Println(prefix + "└── " + name + "/")
 			} else {
@@ -46,17 +70,32 @@ func walkDir(currentDir, baseRelPath, prefix string) ([]string, error) {
 			fullPath := filepath.Join(currentDir, name)
 			subFiles, err := walkDir(fullPath, childRelPath, newPrefix)
 			if err != nil {
+				// ошибку логируем, но не прерываем весь процесс
 				fmt.Fprintf(os.Stderr, "Error accessing %s: %v\n", fullPath, err)
 			} else {
 				files = append(files, subFiles...)
 			}
 		} else {
+			// вывод для файла (этап 1)
 			if last {
 				fmt.Println(prefix + "└── " + name)
 			} else {
 				fmt.Println(prefix + "├── " + name)
 			}
-			files = append(files, childRelPath)
+
+			// определяем, является ли файл текстовым
+			// (имеется в виду проверка, является ли файл "читабельным", а не бинарником или картинкой)
+			fullPath := filepath.Join(currentDir, name)
+			data, err := os.ReadFile(fullPath)
+			isTextFile := false
+			if err == nil {
+				// используем функцию-обёртку для ответа (текстовый ли файл, али бинарник кракозябрный)
+				isTextFile = detector.IsText(data)
+			} else {
+				fmt.Fprintf(os.Stderr, "Could not read file %s to determine type: %v\n", fullPath, err)
+			}
+
+			files = append(files, fileInfo{relPath: childRelPath, isText: isTextFile})
 		}
 	}
 
@@ -88,6 +127,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Этап 1: построение древа директории
 	rootName := filepath.Base(root)
 	fmt.Println(rootName + "/")
 
@@ -97,14 +137,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, relPath := range files {
-		displayPath := filepath.Join(rootName, relPath)
-		displayPath = filepath.ToSlash(displayPath)
+	// добавляем пустую строку для визуального разделения
+	fmt.Println()
+
+	// Этап 2: вывод содержимого только текстовых файлов
+	for _, file := range files {
+		// пропускаем нетекстовые файлы
+		if !file.isText {
+			continue
+		}
+
+		fullPath := filepath.Join(root, file.relPath)
+		displayPath := filepath.Join(rootName, file.relPath)
+		displayPath = filepath.ToSlash(displayPath) // для вывода на Windows
+
 		fmt.Printf("%s:\n", displayPath)
 		fmt.Println("```")
-		data, err := os.ReadFile(filepath.Join(root, relPath))
+		data, err := os.ReadFile(fullPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", filepath.Join(root, relPath), err)
+			fmt.Fprintf(os.Stderr, "Error reading %s: %v\n", fullPath, err)
+			fmt.Printf("Error reading file: %v\n", err)
 		} else {
 			fmt.Println(string(data))
 		}

@@ -55,16 +55,16 @@ func walkDir(currentDir, baseRelPath, prefix string) ([]fileInfo, error) {
 		if item.IsDir() {
 			// вывод для директории (этап 1)
 			if last {
-				fmt.Println(prefix + "└── " + name + "/")
+				fmt.Println(prefix + "\\-- " + name + "/")
 			} else {
-				fmt.Println(prefix + "├── " + name + "/")
+				fmt.Println(prefix + "+-- " + name + "/")
 			}
 
 			newPrefix := prefix
 			if last {
 				newPrefix += "    "
 			} else {
-				newPrefix += "│   "
+				newPrefix += "|   "
 			}
 
 			fullPath := filepath.Join(currentDir, name)
@@ -78,9 +78,9 @@ func walkDir(currentDir, baseRelPath, prefix string) ([]fileInfo, error) {
 		} else {
 			// вывод для файла (этап 1)
 			if last {
-				fmt.Println(prefix + "└── " + name)
+				fmt.Println(prefix + "\\-- " + name)
 			} else {
-				fmt.Println(prefix + "├── " + name)
+				fmt.Println(prefix + "+-- " + name)
 			}
 
 			// определяем, является ли файл текстовым

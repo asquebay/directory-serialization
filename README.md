@@ -14,7 +14,7 @@
 
 Для определения, является ли файл текстовым (в противовес бинарному), используется продвинутый алгоритм, портированный со старых исходников текстового редактора Kate (см. https://api.kde.org/legacy/4.14-api/kdelibs-apidocs/kdecore/html/kencodingdetector_8cpp_source.html и его зависимости). Он позволяет точно отфильтровывать изображения, архивы и исполняемые файлы, отображая только "читаемый" контент.
 
-Программа принимает на вход один обязательный аргумент — путь к директории, которую нужно обработать.
+Программа принимает на вход один обязательный аргумент — путь к директории, которую нужно обработать. Также доступен флаг `-i` или `--ignore`, после которого можно перечислить пути (как полные, так и сокращённые — без пути к корню директории) к файлам и папкам, которые нужно полностью исключить из обхода и сериализации.
 
 ## **Установка:**
 
@@ -33,4 +33,9 @@ git clone https://github.com/asquebay/directory-serialization.git && cd director
 **Сериализация директории example-project в файл output.txt:**
 ```
 [user@nixos:~]$ go run main.go /home/user/go/src/example-project >> output.txt
+```
+
+**Сериализация директории example-project в файл output.txt с игнорированием подпути folder1 и подфайлов folder2/file2 и folder2/file3 (с примером полного и сокращённого путей):**
+```
+[user@nixos:~]$ go run main.go /home/user/go/src/example-project -i folder1 folder2/file2 /home/user/go/src/example-project/folder2/file3 >> output.txt
 ```
